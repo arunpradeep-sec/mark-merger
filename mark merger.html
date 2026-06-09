@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Exam Mark Merger</title>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
+<style>
+body{
+    font-family:Arial;
+    max-width:900px;
+    margin:auto;
+    padding:20px;
+}
+
+.box{
+    border:1px solid #ccc;
+    border-radius:8px;
+    padding:15px;
+    margin-bottom:15px;
+}
+
+button{
+    padding:10px 20px;
+    font-size:16px;
+    cursor:pointer;
+}
+</style>
+
+</head>
+
+<body>
+
+<h2>Exam Mark Merger</h2>
+
+<div class="box">
+    <label><b>PART A CSV</b></label><br><br>
+    <input type="file" id="partA" accept=".csv">
+</div>
+
+<div class="box">
+    <label><b>PART B&C Excel</b></label><br><br>
+    <input type="file" id="partBC" accept=".xlsx,.xls">
+</div>
+
+<div class="box">
+    <label><b>Output Template Excel</b></label><br><br>
+    <input type="file" id="template" accept=".xlsx,.xls">
+</div>
+
+<button onclick="generateOutput()">
+Generate Output
+</button>
+
+<script>
+
+function cleanId(value){
+
+    if(value===undefined || value===null)
+        return "";
+
+    return String(value)
+        .replace(".0","")
+        .trim();
+}
+
+function readFile(file){
+
+    return new Promise((resolve,reject)=>{
+
+        const reader=new FileReader();
+
+        reader.onload=e=>resolve(e.target.result);
+
+        reader.onerror=reject;
+
+        reader.readAsArrayBuffer(file);
+
+    });
+}
+
+async function generateOutput(){
+
+    const partAFile=document.getElementById("partA").files[0];
+    const partBCFile=document.getElementById("partBC").files[0];
+    const templateFile=document.getElementById("template").files[0];
+
+    if(!partAFile || !partBCFile || !templateFile){
+
+        alert("Please upload all files.");
+        return;
+    }
+
+    const partABuffer=await readFile(partAFile);
+    const partBCBuffer=await readFile(partBCFile);
+    const templateBuffer=await readFile(templateFile);
+
+    const partAWB=XLSX.read(partABuffer);
+    const partBCWB=XLSX.read(partBCBuffer);
+    const templateWB=XLSX.read(templateBuffer);
+
+    /* ==========================
+       PART A
+       ========================== */
+
+    const partASheet=
+        XLSX.utils.sheet_to_json(
+            partAWB.Sheets[
+                partAWB.SheetNames[0]
+            ]
+        );
+
+    const partAMap={};
+
+    partASheet.forEach(row=>{
+
+        const sid=cleanId(row["ID number"]);
+
+        partAMap[sid]={
+
+            q1:Number(row["Q. 1 /2.00"] || 0)*2,
+            q2:Number(row["Q. 2 /2.00"] || 0)*2,
+            q3:Number(row["Q. 3 /2.00"] || 0)*2,
+            q4:Number(row["Q. 4 /2.00"] || 0)*2,
+            q5:Number(row["Q. 5 /2.00"] || 0)*2
+        };
+
+    });
+
+    /* ==========================
+       PART B&C
+       ========================== */
+
+    const bcSheet=
+        partBCWB.Sheets[
+            partBCWB.SheetNames[0]
+        ];
+
+    const bcRows=
+        XLSX.utils.sheet_to_json(
+            bcSheet,
+            {header:1}
+        );
+
+    const bcMap={};
+
+    for(let r=1;r<bcRows.length;r++){
+
+        const row=bcRows[r];
+
+        const sid=cleanId(row[3]); // Column D
+
+        if(!sid) continue;
+
+        bcMap[sid]={
+
+            q6:Number(row[5] || 0)*2,   // F
+            q7:Number(row[8] || 0)*2,   // I
+            q8:Number(row[11] || 0)*2   // L
+        };
+    }
+
+    /* ==========================
+       TEMPLATE
+       ========================== */
+
+    const templateSheet=
+        templateWB.Sheets[
+            templateWB.SheetNames[0]
+        ];
+
+    const rows=
+        XLSX.utils.sheet_to_json(
+            templateSheet,
+            {header:1}
+        );
+
+    for(let r=4;r<rows.length;r++){
+
+        const row=rows[r];
+
+        const sid=cleanId(row[0]);
+
+        if(!sid) continue;
+
+        /* PART A */
+
+        const a=partAMap[sid];
+
+        if(a){
+
+            row[6]=a.q1;   // G
+            row[7]=a.q2;   // H
+            row[8]=a.q3;   // I
+            row[9]=a.q4;   // J
+            row[10]=a.q5;  // K
+        }
+
+        /* PART B&C */
+
+        const bc=bcMap[sid];
+
+        if(bc){
+
+            row[11]=bc.q6; // L
+            row[13]=bc.q7; // N
+            row[15]=bc.q8; // P
+        }
+    }
+
+    const outputSheet=
+        XLSX.utils.aoa_to_sheet(rows);
+
+    templateWB.Sheets[
+        templateWB.SheetNames[0]
+    ]=outputSheet;
+
+    XLSX.writeFile(
+        templateWB,
+        "Final_Merged_Output.xlsx"
+    );
+
+    alert("Output generated successfully!");
+}
+
+</script>
+
+</body>
+</html>
