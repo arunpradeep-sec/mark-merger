@@ -132,34 +132,43 @@ async function generateOutput(){
        PART B&C
        ========================== */
 
-    const bcSheet=
-        partBCWB.Sheets[
-            partBCWB.SheetNames[0]
-        ];
+    /* ==========================
+   PART B&C
+   ========================== */
 
-    const bcRows=
-        XLSX.utils.sheet_to_json(
-            bcSheet,
-            {header:1}
-        );
+const bcSheet=
+    partBCWB.Sheets[
+        partBCWB.SheetNames[0]
+    ];
 
-    const bcMap={};
+const bcRows=
+    XLSX.utils.sheet_to_json(
+        bcSheet,
+        {header:1}
+    );
 
-    for(let r=1;r<bcRows.length;r++){
+const bcMap={};
 
-        const row=bcRows[r];
+// First student record starts at Excel Row 7
+for(let r=6;r<bcRows.length;r++){
 
-        const sid=cleanId(row[3]); // Column D
+    const row=bcRows[r];
 
-        if(!sid) continue;
+    const sid=String(row[3] || "")
+                    .replace(".0","")
+                    .trim();
 
-        bcMap[sid]={
+    if(!sid) continue;
 
-            q6:Number(row[5] || 0)*2,   // F
-            q7:Number(row[8] || 0)*2,   // I
-            q8:Number(row[11] || 0)*2   // L
-        };
-    }
+    bcMap[sid]={
+
+        q6:Number(row[5] || 0)*2,   // F
+
+        q7:Number(row[8] || 0)*2,   // I
+
+        q8:Number(row[11] || 0)*2   // L
+    };
+}
 
     /* ==========================
        TEMPLATE
@@ -209,6 +218,28 @@ async function generateOutput(){
         }
     }
 
+    /* ==========================
+   COLUMN F = SUM(G:Q)
+   ========================== */
+
+for(let r=4; r<rows.length; r++){
+
+    const row = rows[r];
+
+    const regNo = cleanId(row[0]);
+
+    // Stop at first blank register number
+    if(!regNo)
+        break;
+
+    let total = 0;
+
+    for(let c=6; c<=16; c++){
+        total += Number(row[c] || 0);
+    }
+
+    row[5] = total; // Column F
+}
     const outputSheet=
         XLSX.utils.aoa_to_sheet(rows);
 
