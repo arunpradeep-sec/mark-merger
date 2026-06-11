@@ -118,14 +118,6 @@ containing:
 
 ---
 
-## Technology Used
-
-* HTML
-* JavaScript
-* SheetJS (xlsx)
-
----
-
 ## Disclaimer
 
 This application is intended for educational and academic use only.
